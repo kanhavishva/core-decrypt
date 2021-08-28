@@ -210,23 +210,23 @@ __constant unsigned int _invMixCol4[] = {
 
 unsigned int sub_word(unsigned int t)
 {
-    return (_sbox[(unsigned char)(t >> 24)] << 24) | (_sbox[(unsigned char)(t >> 16)] << 16) | (_sbox[(unsigned char)(t >> 8)] << 8) | _sbox[(unsigned char)t]; \
+	return (_sbox[(unsigned char)(t >> 24)] << 24) | (_sbox[(unsigned char)(t >> 16)] << 16) | (_sbox[(unsigned char)(t >> 8)] << 8) | _sbox[(unsigned char)t]; \
 }
 
 unsigned int sub_and_rotate(unsigned int t)
 {
-    return (_sbox[(unsigned char)(t >> 16)] << 24) | (_sbox[(unsigned char)(t >> 8)] << 16) | (_sbox[(unsigned char)t] << 8) | _sbox[(unsigned char)(t >> 24)]; \
+	return (_sbox[(unsigned char)(t >> 16)] << 24) | (_sbox[(unsigned char)(t >> 8)] << 16) | (_sbox[(unsigned char)t] << 8) | _sbox[(unsigned char)(t >> 24)]; \
 }
 
-void aes_256_key_expand(__private const unsigned int *key, unsigned int *subkeys)
+void aes_256_key_expand(__private const unsigned int* key, unsigned int* subkeys)
 {
-    unsigned int t;
-    for(int i = 0; i < 8; i++) {
-        subkeys[i] = key[i];
-    }
+	unsigned int t;
+	for (int i = 0; i < 8; i++) {
+		subkeys[i] = key[i];
+	}
 
 
-    // Macro for key expansion
+	// Macro for key expansion
 #define SUBKEY_EXPAND(i, rcon)\
         t = subkeys[((i-1)*8)+7];\
         t = sub_and_rotate(t) ^ (rcon);\
@@ -260,34 +260,34 @@ void aes_256_key_expand(__private const unsigned int *key, unsigned int *subkeys
         t ^= subkeys[(i-1)*8+3];\
         subkeys[i*8+3] = t;\
 
-    // Unroll key expansion
-    SUBKEY_EXPAND(1, 0x01000000)
-        SUBKEY_EXPAND(2, 0x02000000)
-        SUBKEY_EXPAND(3, 0x04000000)
-        SUBKEY_EXPAND(4, 0x08000000)
-        SUBKEY_EXPAND(5, 0x10000000)
-        SUBKEY_EXPAND(6, 0x20000000)
-        SUBKEY_EXPAND_HALF(7, 0x40000000)
+	// Unroll key expansion
+	SUBKEY_EXPAND(1, 0x01000000)
+		SUBKEY_EXPAND(2, 0x02000000)
+		SUBKEY_EXPAND(3, 0x04000000)
+		SUBKEY_EXPAND(4, 0x08000000)
+		SUBKEY_EXPAND(5, 0x10000000)
+		SUBKEY_EXPAND(6, 0x20000000)
+		SUBKEY_EXPAND_HALF(7, 0x40000000)
 }
 
 
 
 
-void aes256_cbc_decrypt(const unsigned int *key, const __global unsigned int iv[4], const __global unsigned int ciphertext[4], unsigned int plaintext[4])
+void aes256_cbc_decrypt(const unsigned int* key, const __global unsigned int iv[4], const __global unsigned int ciphertext[4], unsigned int plaintext[4])
 {
-    unsigned int subkeys[60];
-    unsigned int s0, s1, s2, s3;
-    unsigned int t0, t1, t2, t3;
+	unsigned int subkeys[60];
+	unsigned int s0, s1, s2, s3;
+	unsigned int t0, t1, t2, t3;
 
-    aes_256_key_expand(key, subkeys);
+	aes_256_key_expand(key, subkeys);
 
-    // AddRoundKey
-    s0 = ciphertext[0] ^ subkeys[56];
-    s1 = ciphertext[1] ^ subkeys[57];
-    s2 = ciphertext[2] ^ subkeys[58];
-    s3 = ciphertext[3] ^ subkeys[59];
+	// AddRoundKey
+	s0 = ciphertext[0] ^ subkeys[56];
+	s1 = ciphertext[1] ^ subkeys[57];
+	s2 = ciphertext[2] ^ subkeys[58];
+	s3 = ciphertext[3] ^ subkeys[59];
 
-    // Macro for AES round (InvSubBytes, InvShiftRows, InvMixCols)
+	// Macro for AES round (InvSubBytes, InvShiftRows, InvMixCols)
 #define AES_ROUND(i)\
         t0 = (_invSbox[(s0>>24)]<<24)\
                 | (_invSbox[(unsigned char)(s3>>16)]<<16)\
@@ -326,44 +326,44 @@ void aes256_cbc_decrypt(const unsigned int *key, const __global unsigned int iv[
                     ^ _invMixCol3[(unsigned char)(s3>>8)]\
                     ^ _invMixCol4[(unsigned char)s3];\
 
-    // Unroll first 13 AES rounds
-    AES_ROUND(13)
-        AES_ROUND(12)
-        AES_ROUND(11)
-        AES_ROUND(10)
-        AES_ROUND(9)
-        AES_ROUND(8)
-        AES_ROUND(7)
-        AES_ROUND(6)
-        AES_ROUND(5)
-        AES_ROUND(4)
-        AES_ROUND(3)
-        AES_ROUND(2)
-        AES_ROUND(1)
+	// Unroll first 13 AES rounds
+	AES_ROUND(13)
+		AES_ROUND(12)
+		AES_ROUND(11)
+		AES_ROUND(10)
+		AES_ROUND(9)
+		AES_ROUND(8)
+		AES_ROUND(7)
+		AES_ROUND(6)
+		AES_ROUND(5)
+		AES_ROUND(4)
+		AES_ROUND(3)
+		AES_ROUND(2)
+		AES_ROUND(1)
 
-        // Last round: InvSubBytes + InvShiftRows
-        t0 = (_invSbox[(s0 >> 24)] << 24)
-        | (_invSbox[(unsigned char)(s3 >> 16)] << 16)
-        | (_invSbox[(unsigned char)(s2 >> 8)] << 8)
-        | (_invSbox[(unsigned char)(s1)]);
-    t1 = (_invSbox[(s1 >> 24)] << 24)
-        | (_invSbox[(unsigned char)(s0 >> 16)] << 16)
-        | (_invSbox[(unsigned char)(s3 >> 8)] << 8)
-        | (_invSbox[(unsigned char)(s2)]);
-    t2 = (_invSbox[(s2 >> 24)] << 24)
-        | (_invSbox[(unsigned char)(s1 >> 16)] << 16)
-        | (_invSbox[(unsigned char)(s0 >> 8)] << 8)
-        | (_invSbox[(unsigned char)(s3)]);
-    t3 = (_invSbox[(s3 >> 24)] << 24)
-        | (_invSbox[(unsigned char)(s2 >> 16)] << 16)
-        | (_invSbox[(unsigned char)(s1 >> 8)] << 8)
-        | (_invSbox[(unsigned char)(s0)]);
+		// Last round: InvSubBytes + InvShiftRows
+		t0 = (_invSbox[(s0 >> 24)] << 24)
+		| (_invSbox[(unsigned char)(s3 >> 16)] << 16)
+		| (_invSbox[(unsigned char)(s2 >> 8)] << 8)
+		| (_invSbox[(unsigned char)(s1)]);
+	t1 = (_invSbox[(s1 >> 24)] << 24)
+		| (_invSbox[(unsigned char)(s0 >> 16)] << 16)
+		| (_invSbox[(unsigned char)(s3 >> 8)] << 8)
+		| (_invSbox[(unsigned char)(s2)]);
+	t2 = (_invSbox[(s2 >> 24)] << 24)
+		| (_invSbox[(unsigned char)(s1 >> 16)] << 16)
+		| (_invSbox[(unsigned char)(s0 >> 8)] << 8)
+		| (_invSbox[(unsigned char)(s3)]);
+	t3 = (_invSbox[(s3 >> 24)] << 24)
+		| (_invSbox[(unsigned char)(s2 >> 16)] << 16)
+		| (_invSbox[(unsigned char)(s1 >> 8)] << 8)
+		| (_invSbox[(unsigned char)(s0)]);
 
-    // Final AddRoundKey
-    plaintext[0] = t0 ^ subkeys[0] ^ iv[0];
-    plaintext[1] = t1 ^ subkeys[1] ^ iv[1];
-    plaintext[2] = t2 ^ subkeys[2] ^ iv[2];
-    plaintext[3] = t3 ^ subkeys[3] ^ iv[3];
+	// Final AddRoundKey
+	plaintext[0] = t0 ^ subkeys[0] ^ iv[0];
+	plaintext[1] = t1 ^ subkeys[1] ^ iv[1];
+	plaintext[2] = t2 ^ subkeys[2] ^ iv[2];
+	plaintext[3] = t3 ^ subkeys[3] ^ iv[3];
 }
 
 
@@ -419,376 +419,376 @@ __constant ulong _K2[] = {
 };
 
 __constant ulong _IV[8] = {
-    0x6a09e667f3bcc908,
-    0xbb67ae8584caa73b,
-    0x3c6ef372fe94f82b,
-    0xa54ff53a5f1d36f1,
-    0x510e527fade682d1,
-    0x9b05688c2b3e6c1f,
-    0x1f83d9abfb41bd6b,
-    0x5be0cd19137e2179
+	0x6a09e667f3bcc908,
+	0xbb67ae8584caa73b,
+	0x3c6ef372fe94f82b,
+	0xa54ff53a5f1d36f1,
+	0x510e527fade682d1,
+	0x9b05688c2b3e6c1f,
+	0x1f83d9abfb41bd6b,
+	0x5be0cd19137e2179
 };
 
 
 
 void sha512(ulong w[16])
 {
-    ulong a, b, c, d, e, f, g, h;
+	ulong a, b, c, d, e, f, g, h;
 
-    a = _IV[0];
-    b = _IV[1];
-    c = _IV[2];
-    d = _IV[3];
-    e = _IV[4];
-    f = _IV[5];
-    g = _IV[6];
-    h = _IV[7];
+	a = _IV[0];
+	b = _IV[1];
+	c = _IV[2];
+	d = _IV[3];
+	e = _IV[4];
+	f = _IV[5];
+	g = _IV[6];
+	h = _IV[7];
 
 
-    F(a, b, c, d, e, f, g, h, w[0], _K[0]);
-    F(h, a, b, c, d, e, f, g, w[1], _K[1]);
-    F(g, h, a, b, c, d, e, f, w[2], _K[2]);
-    F(f, g, h, a, b, c, d, e, w[3], _K[3]);
-    F(e, f, g, h, a, b, c, d, w[4], _K[4]);
-    F(d, e, f, g, h, a, b, c, w[5], _K[5]);
-    F(c, d, e, f, g, h, a, b, w[6], _K[6]);
-    F(b, c, d, e, f, g, h, a, w[7], _K[7]);
-    F(a, b, c, d, e, f, g, h, w[8], _K[8]);
-    F(h, a, b, c, d, e, f, g, w[9], _K[9]);
-    F(g, h, a, b, c, d, e, f, w[10], _K[10]);
-    F(f, g, h, a, b, c, d, e, w[11], _K[11]);
-    F(e, f, g, h, a, b, c, d, w[12], _K[12]);
-    F(d, e, f, g, h, a, b, c, w[13], _K[13]);
-    F(c, d, e, f, g, h, a, b, w[14], _K[14]);
-    F(b, c, d, e, f, g, h, a, w[15], _K[15]);
+	F(a, b, c, d, e, f, g, h, w[0], _K[0]);
+	F(h, a, b, c, d, e, f, g, w[1], _K[1]);
+	F(g, h, a, b, c, d, e, f, w[2], _K[2]);
+	F(f, g, h, a, b, c, d, e, w[3], _K[3]);
+	F(e, f, g, h, a, b, c, d, w[4], _K[4]);
+	F(d, e, f, g, h, a, b, c, w[5], _K[5]);
+	F(c, d, e, f, g, h, a, b, w[6], _K[6]);
+	F(b, c, d, e, f, g, h, a, w[7], _K[7]);
+	F(a, b, c, d, e, f, g, h, w[8], _K[8]);
+	F(h, a, b, c, d, e, f, g, w[9], _K[9]);
+	F(g, h, a, b, c, d, e, f, w[10], _K[10]);
+	F(f, g, h, a, b, c, d, e, w[11], _K[11]);
+	F(e, f, g, h, a, b, c, d, w[12], _K[12]);
+	F(d, e, f, g, h, a, b, c, w[13], _K[13]);
+	F(c, d, e, f, g, h, a, b, w[14], _K[14]);
+	F(b, c, d, e, f, g, h, a, w[15], _K[15]);
 
-    w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
-    w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
-    w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
-    w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
-    w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
-    w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
-    w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
-    w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
-    w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
-    w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
-    w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
-    w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
-    w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
-    w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
-    w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
-    w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
+	w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
+	w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
+	w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
+	w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
+	w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
+	w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
+	w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
+	w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
+	w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
+	w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
+	w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
+	w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
+	w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
+	w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
+	w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
+	w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
 
-    F(a, b, c, d, e, f, g, h, w[0], _K[16]);
-    F(h, a, b, c, d, e, f, g, w[1], _K[17]);
-    F(g, h, a, b, c, d, e, f, w[2], _K[18]);
-    F(f, g, h, a, b, c, d, e, w[3], _K[19]);
-    F(e, f, g, h, a, b, c, d, w[4], _K[20]);
-    F(d, e, f, g, h, a, b, c, w[5], _K[21]);
-    F(c, d, e, f, g, h, a, b, w[6], _K[22]);
-    F(b, c, d, e, f, g, h, a, w[7], _K[23]);
-    F(a, b, c, d, e, f, g, h, w[8], _K[24]);
-    F(h, a, b, c, d, e, f, g, w[9], _K[25]);
-    F(g, h, a, b, c, d, e, f, w[10], _K[26]);
-    F(f, g, h, a, b, c, d, e, w[11], _K[27]);
-    F(e, f, g, h, a, b, c, d, w[12], _K[28]);
-    F(d, e, f, g, h, a, b, c, w[13], _K[29]);
-    F(c, d, e, f, g, h, a, b, w[14], _K[30]);
-    F(b, c, d, e, f, g, h, a, w[15], _K[31]);
+	F(a, b, c, d, e, f, g, h, w[0], _K[16]);
+	F(h, a, b, c, d, e, f, g, w[1], _K[17]);
+	F(g, h, a, b, c, d, e, f, w[2], _K[18]);
+	F(f, g, h, a, b, c, d, e, w[3], _K[19]);
+	F(e, f, g, h, a, b, c, d, w[4], _K[20]);
+	F(d, e, f, g, h, a, b, c, w[5], _K[21]);
+	F(c, d, e, f, g, h, a, b, w[6], _K[22]);
+	F(b, c, d, e, f, g, h, a, w[7], _K[23]);
+	F(a, b, c, d, e, f, g, h, w[8], _K[24]);
+	F(h, a, b, c, d, e, f, g, w[9], _K[25]);
+	F(g, h, a, b, c, d, e, f, w[10], _K[26]);
+	F(f, g, h, a, b, c, d, e, w[11], _K[27]);
+	F(e, f, g, h, a, b, c, d, w[12], _K[28]);
+	F(d, e, f, g, h, a, b, c, w[13], _K[29]);
+	F(c, d, e, f, g, h, a, b, w[14], _K[30]);
+	F(b, c, d, e, f, g, h, a, w[15], _K[31]);
 
-    w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
-    w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
-    w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
-    w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
-    w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
-    w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
-    w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
-    w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
-    w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
-    w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
-    w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
-    w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
-    w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
-    w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
-    w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
-    w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
+	w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
+	w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
+	w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
+	w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
+	w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
+	w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
+	w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
+	w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
+	w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
+	w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
+	w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
+	w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
+	w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
+	w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
+	w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
+	w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
 
-    F(a, b, c, d, e, f, g, h, w[0], _K[32]);
-    F(h, a, b, c, d, e, f, g, w[1], _K[33]);
-    F(g, h, a, b, c, d, e, f, w[2], _K[34]);
-    F(f, g, h, a, b, c, d, e, w[3], _K[35]);
-    F(e, f, g, h, a, b, c, d, w[4], _K[36]);
-    F(d, e, f, g, h, a, b, c, w[5], _K[37]);
-    F(c, d, e, f, g, h, a, b, w[6], _K[38]);
-    F(b, c, d, e, f, g, h, a, w[7], _K[39]);
-    F(a, b, c, d, e, f, g, h, w[8], _K[40]);
-    F(h, a, b, c, d, e, f, g, w[9], _K[41]);
-    F(g, h, a, b, c, d, e, f, w[10], _K[42]);
-    F(f, g, h, a, b, c, d, e, w[11], _K[43]);
-    F(e, f, g, h, a, b, c, d, w[12], _K[44]);
-    F(d, e, f, g, h, a, b, c, w[13], _K[45]);
-    F(c, d, e, f, g, h, a, b, w[14], _K[46]);
-    F(b, c, d, e, f, g, h, a, w[15], _K[47]);
+	F(a, b, c, d, e, f, g, h, w[0], _K[32]);
+	F(h, a, b, c, d, e, f, g, w[1], _K[33]);
+	F(g, h, a, b, c, d, e, f, w[2], _K[34]);
+	F(f, g, h, a, b, c, d, e, w[3], _K[35]);
+	F(e, f, g, h, a, b, c, d, w[4], _K[36]);
+	F(d, e, f, g, h, a, b, c, w[5], _K[37]);
+	F(c, d, e, f, g, h, a, b, w[6], _K[38]);
+	F(b, c, d, e, f, g, h, a, w[7], _K[39]);
+	F(a, b, c, d, e, f, g, h, w[8], _K[40]);
+	F(h, a, b, c, d, e, f, g, w[9], _K[41]);
+	F(g, h, a, b, c, d, e, f, w[10], _K[42]);
+	F(f, g, h, a, b, c, d, e, w[11], _K[43]);
+	F(e, f, g, h, a, b, c, d, w[12], _K[44]);
+	F(d, e, f, g, h, a, b, c, w[13], _K[45]);
+	F(c, d, e, f, g, h, a, b, w[14], _K[46]);
+	F(b, c, d, e, f, g, h, a, w[15], _K[47]);
 
-    w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
-    w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
-    w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
-    w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
-    w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
-    w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
-    w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
-    w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
-    w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
-    w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
-    w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
-    w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
-    w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
-    w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
-    w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
-    w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
+	w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
+	w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
+	w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
+	w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
+	w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
+	w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
+	w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
+	w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
+	w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
+	w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
+	w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
+	w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
+	w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
+	w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
+	w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
+	w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
 
-    F(a, b, c, d, e, f, g, h, w[0], _K[48]);
-    F(h, a, b, c, d, e, f, g, w[1], _K[49]);
-    F(g, h, a, b, c, d, e, f, w[2], _K[50]);
-    F(f, g, h, a, b, c, d, e, w[3], _K[51]);
-    F(e, f, g, h, a, b, c, d, w[4], _K[52]);
-    F(d, e, f, g, h, a, b, c, w[5], _K[53]);
-    F(c, d, e, f, g, h, a, b, w[6], _K[54]);
-    F(b, c, d, e, f, g, h, a, w[7], _K[55]);
-    F(a, b, c, d, e, f, g, h, w[8], _K[56]);
-    F(h, a, b, c, d, e, f, g, w[9], _K[57]);
-    F(g, h, a, b, c, d, e, f, w[10], _K[58]);
-    F(f, g, h, a, b, c, d, e, w[11], _K[59]);
-    F(e, f, g, h, a, b, c, d, w[12], _K[60]);
-    F(d, e, f, g, h, a, b, c, w[13], _K[61]);
-    F(c, d, e, f, g, h, a, b, w[14], _K[62]);
-    F(b, c, d, e, f, g, h, a, w[15], _K[63]);
+	F(a, b, c, d, e, f, g, h, w[0], _K[48]);
+	F(h, a, b, c, d, e, f, g, w[1], _K[49]);
+	F(g, h, a, b, c, d, e, f, w[2], _K[50]);
+	F(f, g, h, a, b, c, d, e, w[3], _K[51]);
+	F(e, f, g, h, a, b, c, d, w[4], _K[52]);
+	F(d, e, f, g, h, a, b, c, w[5], _K[53]);
+	F(c, d, e, f, g, h, a, b, w[6], _K[54]);
+	F(b, c, d, e, f, g, h, a, w[7], _K[55]);
+	F(a, b, c, d, e, f, g, h, w[8], _K[56]);
+	F(h, a, b, c, d, e, f, g, w[9], _K[57]);
+	F(g, h, a, b, c, d, e, f, w[10], _K[58]);
+	F(f, g, h, a, b, c, d, e, w[11], _K[59]);
+	F(e, f, g, h, a, b, c, d, w[12], _K[60]);
+	F(d, e, f, g, h, a, b, c, w[13], _K[61]);
+	F(c, d, e, f, g, h, a, b, w[14], _K[62]);
+	F(b, c, d, e, f, g, h, a, w[15], _K[63]);
 
-    w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
-    w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
-    w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
-    w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
-    w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
-    w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
-    w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
-    w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
-    w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
-    w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
-    w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
-    w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
-    w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
-    w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
-    w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
-    w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
+	w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
+	w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
+	w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
+	w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
+	w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
+	w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
+	w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
+	w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
+	w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
+	w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
+	w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
+	w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
+	w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
+	w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
+	w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
+	w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
 
-    F(a, b, c, d, e, f, g, h, w[0], _K[64]);
-    F(h, a, b, c, d, e, f, g, w[1], _K[65]);
-    F(g, h, a, b, c, d, e, f, w[2], _K[66]);
-    F(f, g, h, a, b, c, d, e, w[3], _K[67]);
-    F(e, f, g, h, a, b, c, d, w[4], _K[68]);
-    F(d, e, f, g, h, a, b, c, w[5], _K[69]);
-    F(c, d, e, f, g, h, a, b, w[6], _K[70]);
-    F(b, c, d, e, f, g, h, a, w[7], _K[71]);
-    F(a, b, c, d, e, f, g, h, w[8], _K[72]);
-    F(h, a, b, c, d, e, f, g, w[9], _K[73]);
-    F(g, h, a, b, c, d, e, f, w[10], _K[74]);
-    F(f, g, h, a, b, c, d, e, w[11], _K[75]);
-    F(e, f, g, h, a, b, c, d, w[12], _K[76]);
-    F(d, e, f, g, h, a, b, c, w[13], _K[77]);
-    F(c, d, e, f, g, h, a, b, w[14], _K[78]);
-    F(b, c, d, e, f, g, h, a, w[15], _K[79]);
+	F(a, b, c, d, e, f, g, h, w[0], _K[64]);
+	F(h, a, b, c, d, e, f, g, w[1], _K[65]);
+	F(g, h, a, b, c, d, e, f, w[2], _K[66]);
+	F(f, g, h, a, b, c, d, e, w[3], _K[67]);
+	F(e, f, g, h, a, b, c, d, w[4], _K[68]);
+	F(d, e, f, g, h, a, b, c, w[5], _K[69]);
+	F(c, d, e, f, g, h, a, b, w[6], _K[70]);
+	F(b, c, d, e, f, g, h, a, w[7], _K[71]);
+	F(a, b, c, d, e, f, g, h, w[8], _K[72]);
+	F(h, a, b, c, d, e, f, g, w[9], _K[73]);
+	F(g, h, a, b, c, d, e, f, w[10], _K[74]);
+	F(f, g, h, a, b, c, d, e, w[11], _K[75]);
+	F(e, f, g, h, a, b, c, d, w[12], _K[76]);
+	F(d, e, f, g, h, a, b, c, w[13], _K[77]);
+	F(c, d, e, f, g, h, a, b, w[14], _K[78]);
+	F(b, c, d, e, f, g, h, a, w[15], _K[79]);
 
-    // Add the new state to the old state
-    w[0] = a + _IV[0];
-    w[1] = b + _IV[1];
-    w[2] = c + _IV[2];
-    w[3] = d + _IV[3];
-    w[4] = e + _IV[4];
-    w[5] = f + _IV[5];
-    w[6] = g + _IV[6];
-    w[7] = h + _IV[7];
+	// Add the new state to the old state
+	w[0] = a + _IV[0];
+	w[1] = b + _IV[1];
+	w[2] = c + _IV[2];
+	w[3] = d + _IV[3];
+	w[4] = e + _IV[4];
+	w[5] = f + _IV[5];
+	w[6] = g + _IV[6];
+	w[7] = h + _IV[7];
 }
 
 
 void sha512_hash(ulong x[8])
 {
-    ulong a, b, c, d, e, f, g, h;
-    ulong w[16];
+	ulong a, b, c, d, e, f, g, h;
+	ulong w[16];
 
-    a = _IV[0];
-    b = _IV[1];
-    c = _IV[2];
-    d = _IV[3];
-    e = _IV[4];
-    f = _IV[5];
-    g = _IV[6];
-    h = _IV[7];
+	a = _IV[0];
+	b = _IV[1];
+	c = _IV[2];
+	d = _IV[3];
+	e = _IV[4];
+	f = _IV[5];
+	g = _IV[6];
+	h = _IV[7];
 
-    const ulong w8 = 0x8000000000000000;
-    const ulong w15 = 512;
+	const ulong w8 = 0x8000000000000000;
+	const ulong w15 = 512;
 
-    F(a, b, c, d, e, f, g, h, x[0], _K[0]);
-    F(h, a, b, c, d, e, f, g, x[1], _K[1]);
-    F(g, h, a, b, c, d, e, f, x[2], _K[2]);
-    F(f, g, h, a, b, c, d, e, x[3], _K[3]);
-    F(e, f, g, h, a, b, c, d, x[4], _K[4]);
-    F(d, e, f, g, h, a, b, c, x[5], _K[5]);
-    F(c, d, e, f, g, h, a, b, x[6], _K[6]);
-    F(b, c, d, e, f, g, h, a, x[7], _K[7]);
-    F(a, b, c, d, e, f, g, h, w8, _K[8]);
-    F(h, a, b, c, d, e, f, g, 0, _K[9]);
-    F(g, h, a, b, c, d, e, f, 0, _K[10]);
-    F(f, g, h, a, b, c, d, e, 0, _K[11]);
-    F(e, f, g, h, a, b, c, d, 0, _K[12]);
-    F(d, e, f, g, h, a, b, c, 0, _K[13]);
-    F(c, d, e, f, g, h, a, b, 0, _K[14]);
-    F(b, c, d, e, f, g, h, a, w15, _K[15]);
+	F(a, b, c, d, e, f, g, h, x[0], _K[0]);
+	F(h, a, b, c, d, e, f, g, x[1], _K[1]);
+	F(g, h, a, b, c, d, e, f, x[2], _K[2]);
+	F(f, g, h, a, b, c, d, e, x[3], _K[3]);
+	F(e, f, g, h, a, b, c, d, x[4], _K[4]);
+	F(d, e, f, g, h, a, b, c, x[5], _K[5]);
+	F(c, d, e, f, g, h, a, b, x[6], _K[6]);
+	F(b, c, d, e, f, g, h, a, x[7], _K[7]);
+	F(a, b, c, d, e, f, g, h, w8, _K[8]);
+	F(h, a, b, c, d, e, f, g, 0, _K[9]);
+	F(g, h, a, b, c, d, e, f, 0, _K[10]);
+	F(f, g, h, a, b, c, d, e, 0, _K[11]);
+	F(e, f, g, h, a, b, c, d, 0, _K[12]);
+	F(d, e, f, g, h, a, b, c, 0, _K[13]);
+	F(c, d, e, f, g, h, a, b, 0, _K[14]);
+	F(b, c, d, e, f, g, h, a, w15, _K[15]);
 
-    w[0] = x[0] + S2(x[1]) + 0 + S3(0);
-    w[1] = x[1] + S2(x[2]) + 0 + S3(w15);
-    w[2] = x[2] + S2(x[3]) + 0 + S3(w[0]);
-    w[3] = x[3] + S2(x[4]) + 0 + S3(w[1]);
-    w[4] = x[4] + S2(x[5]) + 0 + S3(w[2]);
-    w[5] = x[5] + S2(x[6]) + 0 + S3(w[3]);
-    w[6] = x[6] + S2(x[7]) + w15 + S3(w[4]);
-    w[7] = x[7] + S2(w8) + w[0] + S3(w[5]);
-    w[8] = w8 + S2(0) + w[1] + S3(w[6]);
-    w[9] = 0 + S2(0) + w[2] + S3(w[7]);
-    w[10] = 0 + S2(0) + w[3] + S3(w[8]);
-    w[11] = 0 + S2(0) + w[4] + S3(w[9]);
-    w[12] = 0 + S2(0) + w[5] + S3(w[10]);
-    w[13] = 0 + S2(0) + w[6] + S3(w[11]);
-    w[14] = 0 + S2(w15) + w[7] + S3(w[12]);
-    w[15] = w15 + S2(w[0]) + w[8] + S3(w[13]);
+	w[0] = x[0] + S2(x[1]) + 0 + S3(0);
+	w[1] = x[1] + S2(x[2]) + 0 + S3(w15);
+	w[2] = x[2] + S2(x[3]) + 0 + S3(w[0]);
+	w[3] = x[3] + S2(x[4]) + 0 + S3(w[1]);
+	w[4] = x[4] + S2(x[5]) + 0 + S3(w[2]);
+	w[5] = x[5] + S2(x[6]) + 0 + S3(w[3]);
+	w[6] = x[6] + S2(x[7]) + w15 + S3(w[4]);
+	w[7] = x[7] + S2(w8) + w[0] + S3(w[5]);
+	w[8] = w8 + S2(0) + w[1] + S3(w[6]);
+	w[9] = 0 + S2(0) + w[2] + S3(w[7]);
+	w[10] = 0 + S2(0) + w[3] + S3(w[8]);
+	w[11] = 0 + S2(0) + w[4] + S3(w[9]);
+	w[12] = 0 + S2(0) + w[5] + S3(w[10]);
+	w[13] = 0 + S2(0) + w[6] + S3(w[11]);
+	w[14] = 0 + S2(w15) + w[7] + S3(w[12]);
+	w[15] = w15 + S2(w[0]) + w[8] + S3(w[13]);
 
-    F(a, b, c, d, e, f, g, h, w[0], _K[16]);
-    F(h, a, b, c, d, e, f, g, w[1], _K[17]);
-    F(g, h, a, b, c, d, e, f, w[2], _K[18]);
-    F(f, g, h, a, b, c, d, e, w[3], _K[19]);
-    F(e, f, g, h, a, b, c, d, w[4], _K[20]);
-    F(d, e, f, g, h, a, b, c, w[5], _K[21]);
-    F(c, d, e, f, g, h, a, b, w[6], _K[22]);
-    F(b, c, d, e, f, g, h, a, w[7], _K[23]);
-    F(a, b, c, d, e, f, g, h, w[8], _K[24]);
-    F(h, a, b, c, d, e, f, g, w[9], _K[25]);
-    F(g, h, a, b, c, d, e, f, w[10], _K[26]);
-    F(f, g, h, a, b, c, d, e, w[11], _K[27]);
-    F(e, f, g, h, a, b, c, d, w[12], _K[28]);
-    F(d, e, f, g, h, a, b, c, w[13], _K[29]);
-    F(c, d, e, f, g, h, a, b, w[14], _K[30]);
-    F(b, c, d, e, f, g, h, a, w[15], _K[31]);
+	F(a, b, c, d, e, f, g, h, w[0], _K[16]);
+	F(h, a, b, c, d, e, f, g, w[1], _K[17]);
+	F(g, h, a, b, c, d, e, f, w[2], _K[18]);
+	F(f, g, h, a, b, c, d, e, w[3], _K[19]);
+	F(e, f, g, h, a, b, c, d, w[4], _K[20]);
+	F(d, e, f, g, h, a, b, c, w[5], _K[21]);
+	F(c, d, e, f, g, h, a, b, w[6], _K[22]);
+	F(b, c, d, e, f, g, h, a, w[7], _K[23]);
+	F(a, b, c, d, e, f, g, h, w[8], _K[24]);
+	F(h, a, b, c, d, e, f, g, w[9], _K[25]);
+	F(g, h, a, b, c, d, e, f, w[10], _K[26]);
+	F(f, g, h, a, b, c, d, e, w[11], _K[27]);
+	F(e, f, g, h, a, b, c, d, w[12], _K[28]);
+	F(d, e, f, g, h, a, b, c, w[13], _K[29]);
+	F(c, d, e, f, g, h, a, b, w[14], _K[30]);
+	F(b, c, d, e, f, g, h, a, w[15], _K[31]);
 
-    w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
-    w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
-    w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
-    w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
-    w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
-    w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
-    w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
-    w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
-    w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
-    w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
-    w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
-    w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
-    w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
-    w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
-    w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
-    w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
+	w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
+	w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
+	w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
+	w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
+	w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
+	w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
+	w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
+	w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
+	w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
+	w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
+	w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
+	w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
+	w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
+	w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
+	w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
+	w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
 
-    F(a, b, c, d, e, f, g, h, w[0], _K[32]);
-    F(h, a, b, c, d, e, f, g, w[1], _K[33]);
-    F(g, h, a, b, c, d, e, f, w[2], _K[34]);
-    F(f, g, h, a, b, c, d, e, w[3], _K[35]);
-    F(e, f, g, h, a, b, c, d, w[4], _K[36]);
-    F(d, e, f, g, h, a, b, c, w[5], _K[37]);
-    F(c, d, e, f, g, h, a, b, w[6], _K[38]);
-    F(b, c, d, e, f, g, h, a, w[7], _K[39]);
-    F(a, b, c, d, e, f, g, h, w[8], _K[40]);
-    F(h, a, b, c, d, e, f, g, w[9], _K[41]);
-    F(g, h, a, b, c, d, e, f, w[10], _K[42]);
-    F(f, g, h, a, b, c, d, e, w[11], _K[43]);
-    F(e, f, g, h, a, b, c, d, w[12], _K[44]);
-    F(d, e, f, g, h, a, b, c, w[13], _K[45]);
-    F(c, d, e, f, g, h, a, b, w[14], _K[46]);
-    F(b, c, d, e, f, g, h, a, w[15], _K[47]);
+	F(a, b, c, d, e, f, g, h, w[0], _K[32]);
+	F(h, a, b, c, d, e, f, g, w[1], _K[33]);
+	F(g, h, a, b, c, d, e, f, w[2], _K[34]);
+	F(f, g, h, a, b, c, d, e, w[3], _K[35]);
+	F(e, f, g, h, a, b, c, d, w[4], _K[36]);
+	F(d, e, f, g, h, a, b, c, w[5], _K[37]);
+	F(c, d, e, f, g, h, a, b, w[6], _K[38]);
+	F(b, c, d, e, f, g, h, a, w[7], _K[39]);
+	F(a, b, c, d, e, f, g, h, w[8], _K[40]);
+	F(h, a, b, c, d, e, f, g, w[9], _K[41]);
+	F(g, h, a, b, c, d, e, f, w[10], _K[42]);
+	F(f, g, h, a, b, c, d, e, w[11], _K[43]);
+	F(e, f, g, h, a, b, c, d, w[12], _K[44]);
+	F(d, e, f, g, h, a, b, c, w[13], _K[45]);
+	F(c, d, e, f, g, h, a, b, w[14], _K[46]);
+	F(b, c, d, e, f, g, h, a, w[15], _K[47]);
 
-    w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
-    w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
-    w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
-    w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
-    w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
-    w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
-    w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
-    w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
-    w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
-    w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
-    w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
-    w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
-    w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
-    w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
-    w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
-    w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
+	w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
+	w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
+	w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
+	w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
+	w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
+	w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
+	w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
+	w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
+	w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
+	w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
+	w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
+	w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
+	w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
+	w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
+	w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
+	w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
 
-    F(a, b, c, d, e, f, g, h, w[0], _K[48]);
-    F(h, a, b, c, d, e, f, g, w[1], _K[49]);
-    F(g, h, a, b, c, d, e, f, w[2], _K[50]);
-    F(f, g, h, a, b, c, d, e, w[3], _K[51]);
-    F(e, f, g, h, a, b, c, d, w[4], _K[52]);
-    F(d, e, f, g, h, a, b, c, w[5], _K[53]);
-    F(c, d, e, f, g, h, a, b, w[6], _K[54]);
-    F(b, c, d, e, f, g, h, a, w[7], _K[55]);
-    F(a, b, c, d, e, f, g, h, w[8], _K[56]);
-    F(h, a, b, c, d, e, f, g, w[9], _K[57]);
-    F(g, h, a, b, c, d, e, f, w[10], _K[58]);
-    F(f, g, h, a, b, c, d, e, w[11], _K[59]);
-    F(e, f, g, h, a, b, c, d, w[12], _K[60]);
-    F(d, e, f, g, h, a, b, c, w[13], _K[61]);
-    F(c, d, e, f, g, h, a, b, w[14], _K[62]);
-    F(b, c, d, e, f, g, h, a, w[15], _K[63]);
+	F(a, b, c, d, e, f, g, h, w[0], _K[48]);
+	F(h, a, b, c, d, e, f, g, w[1], _K[49]);
+	F(g, h, a, b, c, d, e, f, w[2], _K[50]);
+	F(f, g, h, a, b, c, d, e, w[3], _K[51]);
+	F(e, f, g, h, a, b, c, d, w[4], _K[52]);
+	F(d, e, f, g, h, a, b, c, w[5], _K[53]);
+	F(c, d, e, f, g, h, a, b, w[6], _K[54]);
+	F(b, c, d, e, f, g, h, a, w[7], _K[55]);
+	F(a, b, c, d, e, f, g, h, w[8], _K[56]);
+	F(h, a, b, c, d, e, f, g, w[9], _K[57]);
+	F(g, h, a, b, c, d, e, f, w[10], _K[58]);
+	F(f, g, h, a, b, c, d, e, w[11], _K[59]);
+	F(e, f, g, h, a, b, c, d, w[12], _K[60]);
+	F(d, e, f, g, h, a, b, c, w[13], _K[61]);
+	F(c, d, e, f, g, h, a, b, w[14], _K[62]);
+	F(b, c, d, e, f, g, h, a, w[15], _K[63]);
 
-    w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
-    w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
-    w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
-    w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
-    w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
-    w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
-    w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
-    w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
-    w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
-    w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
-    w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
-    w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
-    w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
-    w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
-    w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
-    w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
+	w[0] = w[0] + S2(w[1]) + w[9] + S3(w[14]);
+	w[1] = w[1] + S2(w[2]) + w[10] + S3(w[15]);
+	w[2] = w[2] + S2(w[3]) + w[11] + S3(w[0]);
+	w[3] = w[3] + S2(w[4]) + w[12] + S3(w[1]);
+	w[4] = w[4] + S2(w[5]) + w[13] + S3(w[2]);
+	w[5] = w[5] + S2(w[6]) + w[14] + S3(w[3]);
+	w[6] = w[6] + S2(w[7]) + w[15] + S3(w[4]);
+	w[7] = w[7] + S2(w[8]) + w[0] + S3(w[5]);
+	w[8] = w[8] + S2(w[9]) + w[1] + S3(w[6]);
+	w[9] = w[9] + S2(w[10]) + w[2] + S3(w[7]);
+	w[10] = w[10] + S2(w[11]) + w[3] + S3(w[8]);
+	w[11] = w[11] + S2(w[12]) + w[4] + S3(w[9]);
+	w[12] = w[12] + S2(w[13]) + w[5] + S3(w[10]);
+	w[13] = w[13] + S2(w[14]) + w[6] + S3(w[11]);
+	w[14] = w[14] + S2(w[15]) + w[7] + S3(w[12]);
+	w[15] = w[15] + S2(w[0]) + w[8] + S3(w[13]);
 
-    F(a, b, c, d, e, f, g, h, w[0], _K[64]);
-    F(h, a, b, c, d, e, f, g, w[1], _K[65]);
-    F(g, h, a, b, c, d, e, f, w[2], _K[66]);
-    F(f, g, h, a, b, c, d, e, w[3], _K[67]);
-    F(e, f, g, h, a, b, c, d, w[4], _K[68]);
-    F(d, e, f, g, h, a, b, c, w[5], _K[69]);
-    F(c, d, e, f, g, h, a, b, w[6], _K[70]);
-    F(b, c, d, e, f, g, h, a, w[7], _K[71]);
-    F(a, b, c, d, e, f, g, h, w[8], _K[72]);
-    F(h, a, b, c, d, e, f, g, w[9], _K[73]);
-    F(g, h, a, b, c, d, e, f, w[10], _K[74]);
-    F(f, g, h, a, b, c, d, e, w[11], _K[75]);
-    F(e, f, g, h, a, b, c, d, w[12], _K[76]);
-    F(d, e, f, g, h, a, b, c, w[13], _K[77]);
-    F(c, d, e, f, g, h, a, b, w[14], _K[78]);
-    F(b, c, d, e, f, g, h, a, w[15], _K[79]);
+	F(a, b, c, d, e, f, g, h, w[0], _K[64]);
+	F(h, a, b, c, d, e, f, g, w[1], _K[65]);
+	F(g, h, a, b, c, d, e, f, w[2], _K[66]);
+	F(f, g, h, a, b, c, d, e, w[3], _K[67]);
+	F(e, f, g, h, a, b, c, d, w[4], _K[68]);
+	F(d, e, f, g, h, a, b, c, w[5], _K[69]);
+	F(c, d, e, f, g, h, a, b, w[6], _K[70]);
+	F(b, c, d, e, f, g, h, a, w[7], _K[71]);
+	F(a, b, c, d, e, f, g, h, w[8], _K[72]);
+	F(h, a, b, c, d, e, f, g, w[9], _K[73]);
+	F(g, h, a, b, c, d, e, f, w[10], _K[74]);
+	F(f, g, h, a, b, c, d, e, w[11], _K[75]);
+	F(e, f, g, h, a, b, c, d, w[12], _K[76]);
+	F(d, e, f, g, h, a, b, c, w[13], _K[77]);
+	F(c, d, e, f, g, h, a, b, w[14], _K[78]);
+	F(b, c, d, e, f, g, h, a, w[15], _K[79]);
 
-    // Add the new state to the old state
-    x[0] = a + _IV[0];
-    x[1] = b + _IV[1];
-    x[2] = c + _IV[2];
-    x[3] = d + _IV[3];
-    x[4] = e + _IV[4];
-    x[5] = f + _IV[5];
-    x[6] = g + _IV[6];
-    x[7] = h + _IV[7];
+	// Add the new state to the old state
+	x[0] = a + _IV[0];
+	x[1] = b + _IV[1];
+	x[2] = c + _IV[2];
+	x[3] = d + _IV[3];
+	x[4] = e + _IV[4];
+	x[5] = f + _IV[5];
+	x[6] = g + _IV[6];
+	x[7] = h + _IV[7];
 }
 
 // 111 character is the maximum number of characters that can fit in a single
@@ -796,226 +796,226 @@ void sha512_hash(ulong x[8])
 #define PASSWORD_MAX_LEN 111
 
 struct password_info {
-    //struct dictionary dictionaries[8];
-    char *words[8];
-    unsigned int *index[8];
-    unsigned int size[8];
+	//struct dictionary dictionaries[8];
+	char* words[8];
+	unsigned int* index[8];
+	unsigned int size[8];
 
-    int num_dictionaries;
+	int num_dictionaries;
 
-    // Number of words in the password
-    int password_len;
+	// Number of words in the password
+	int password_len;
 
-    // Array of integers specifying which dictionary
-    // the letter/word in that place comes from
-    int password_structure[8];
+	// Array of integers specifying which dictionary
+	// the letter/word in that place comes from
+	int password_structure[8];
 };
 
 struct password_offset {
-    unsigned int start;
-    unsigned int count;
+	unsigned int start;
+	unsigned int count;
 };
 
-void next_password_alpha(__global char *alphabet, int alphabet_size, char *password, int len, ulong count)
+void next_password_alpha(__global char* alphabet, int alphabet_size, char* password, int len, ulong count)
 {
-    for(int i = len - 1; i >= 0; i--) {
-        int idx = count % alphabet_size;
-        password[i] = alphabet[idx];
-        count -= idx;
-        count /= alphabet_size;
-    }
+	for (int i = len - 1; i >= 0; i--) {
+		int idx = count % alphabet_size;
+		password[i] = alphabet[idx];
+		count -= idx;
+		count /= alphabet_size;
+	}
 }
 
 
 
-void next_password_dictionary(__global char *dictionary, __global unsigned int *index, __global struct password_offset *offsets, int num_words, char *password, int *length, ulong x)
+void next_password_dictionary(__global char* dictionary, __global unsigned int* index, __global struct password_offset* offsets, int num_words, char* password, int* length, ulong x)
 {
-    int curr_index = 0;
+	int curr_index = 0;
 
-    for(int i = 0; i < num_words; i++) {
-        unsigned int s = offsets[i].start;
-        unsigned int idx = x % offsets[i].count;
+	for (int i = 0; i < num_words; i++) {
+		unsigned int s = offsets[i].start;
+		unsigned int idx = x % offsets[i].count;
 
-        unsigned int start = index[s + idx];
-        unsigned int len = index[s + idx + 1] - start;
+		unsigned int start = index[s + idx];
+		unsigned int len = index[s + idx + 1] - start;
 
-        for(int j = 0; j < len; j++) {
+		for (int j = 0; j < len; j++) {
 
-            if(curr_index + j == PASSWORD_MAX_LEN) {
-                *length = curr_index + j;
-                return;
-            }
+			if (curr_index + j == PASSWORD_MAX_LEN) {
+				*length = curr_index + j;
+				return;
+			}
 
-            password[curr_index + j] = dictionary[start + j];
-        }
-        curr_index += len;
+			password[curr_index + j] = dictionary[start + j];
+		}
+		curr_index += len;
 
-        x -= idx;
-        x /= offsets[i].count;
-    }
-    *length = curr_index;
+		x -= idx;
+		x /= offsets[i].count;
+	}
+	*length = curr_index;
 }
 
 
 bool test_key(__private unsigned int key[8], __global unsigned int encrypted_block[4], __global unsigned int iv[4])
 {
-    unsigned int pt[4];
+	unsigned int pt[4];
 
-    aes256_cbc_decrypt(key, iv, encrypted_block, pt);
+	aes256_cbc_decrypt(key, iv, encrypted_block, pt);
 
-    return pt[0] == 0x10101010 && pt[1] == 0x10101010 && pt[2] == 0x10101010 && pt[3] == 0x10101010;
+	return pt[0] == 0x10101010 && pt[1] == 0x10101010 && pt[2] == 0x10101010 && pt[3] == 0x10101010;
 }
 
-__kernel void dictionary_attack(__global char *dictionary, __global unsigned int *password_index, __global struct password_offset *offsets, int num_words, ulong total_passwords, unsigned int iterations, __global unsigned char *salt, ulong start, int stride, __global ulong *state)
+__kernel void dictionary_attack(__global char* dictionary, __global unsigned int* password_index, __global struct password_offset* offsets, int num_words, ulong total_passwords, unsigned int iterations, __global unsigned char* salt, ulong start, int stride, __global ulong* state)
 {
-    
-    int length = 0;
 
-    char password[PASSWORD_MAX_LEN] = { 0 };
+	int length = 0;
 
-    int idx = get_global_id(0);
+	char password[PASSWORD_MAX_LEN] = { 0 };
 
-    start += idx * stride;
+	int idx = get_global_id(0);
 
-    if(start >= total_passwords) {
-        return;
-    }
+	start += idx * stride;
 
-    next_password_dictionary(dictionary, password_index, offsets, num_words, password, &length, start);
+	if (start >= total_passwords) {
+		return;
+	}
 
-    ulong msg[16] = { 0 };
+	next_password_dictionary(dictionary, password_index, offsets, num_words, password, &length, start);
 
-    // Encode password into the message
-    int shift = 56;
-    for(int i = 0; i < length; i++) {
-        if(i >= 8 && i % 8 == 0) {
-            shift = 56;
-        }
-        ulong c = (ulong)password[i];
+	ulong msg[16] = { 0 };
 
-        msg[i / 8] |= c << shift;
-        shift -= 8;
-    }
+	// Encode password into the message
+	int shift = 56;
+	for (int i = 0; i < length; i++) {
+		if (i >= 8 && i % 8 == 0) {
+			shift = 56;
+		}
+		ulong c = (ulong)password[i];
 
-    // Encode salt
-    for(int i = 0; i < 8; i++) {
-        ulong b = salt[i];
-        msg[(length + i) / 8] |= b << ((7 - ((length + i) % 8))) * 8;
-    }
+		msg[i / 8] |= c << shift;
+		shift -= 8;
+	}
 
-    // Apply padding byte
-    msg[(length + 8) / 8] |= (ulong)0x80 << (7 - ((length + 8) % 8)) * 8;
-    msg[15] = (length + 8) * 8;
+	// Encode salt
+	for (int i = 0; i < 8; i++) {
+		ulong b = salt[i];
+		msg[(length + i) / 8] |= b << ((7 - ((length + i) % 8))) * 8;
+	}
 
-    sha512(msg);
+	// Apply padding byte
+	msg[(length + 8) / 8] |= (ulong)0x80 << (7 - ((length + 8) % 8)) * 8;
+	msg[15] = (length + 8) * 8;
 
-    for(unsigned int i = 0; i < iterations - 1; i++) {
-        sha512_hash(msg);
-    }
+	sha512(msg);
 
-    // Save state to device memory
-    for(int i = 0; i < 8; i++) {
-        state[idx * 8 + i] = msg[i];
-    }
+	for (unsigned int i = 0; i < iterations - 1; i++) {
+		sha512_hash(msg);
+	}
+
+	// Save state to device memory
+	for (int i = 0; i < 8; i++) {
+		state[idx * 8 + i] = msg[i];
+	}
 }
 
-__kernel void brute_force_alphabet(__global char *alphabet, int alphabet_size, int password_len, unsigned int iterations, __global unsigned char *salt, ulong start, int stride, __global ulong *state)
+__kernel void brute_force_alphabet(__global char* alphabet, int alphabet_size, int password_len, unsigned int iterations, __global unsigned char* salt, ulong start, int stride, __global ulong* state)
 {
-    char password[111] = { 0 };
+	char password[111] = { 0 };
 
-    int idx = get_global_id(0);
+	int idx = get_global_id(0);
 
-    start += idx * stride;
+	start += idx * stride;
 
-    next_password_alpha(alphabet, alphabet_size, password, password_len, start);
+	next_password_alpha(alphabet, alphabet_size, password, password_len, start);
 
-    ulong msg[16] = { 0 };
+	ulong msg[16] = { 0 };
 
-    // Encode password into the message
-    int shift = 56;
-    for(int i = 0; i < password_len; i++) {
-        if(i >= 8 && i % 8 == 0) {
-            shift = 56;
-        }
-        ulong c = (ulong)password[i];
+	// Encode password into the message
+	int shift = 56;
+	for (int i = 0; i < password_len; i++) {
+		if (i >= 8 && i % 8 == 0) {
+			shift = 56;
+		}
+		ulong c = (ulong)password[i];
 
-        msg[i / 8] |= c << shift;
-        shift -= 8;
-    }
+		msg[i / 8] |= c << shift;
+		shift -= 8;
+	}
 
-    // Encode salt
-    for(int i = 0; i < 8; i++) {
-        ulong b = salt[i];
-        msg[(password_len + i) / 8] |= b << ((7 - ((password_len + i) % 8))) * 8;
-    }
+	// Encode salt
+	for (int i = 0; i < 8; i++) {
+		ulong b = salt[i];
+		msg[(password_len + i) / 8] |= b << ((7 - ((password_len + i) % 8))) * 8;
+	}
 
-    // Apply padding byte
-    msg[(password_len + 8) / 8] |= (ulong)0x80 << (7 - ((password_len + 8) % 8)) * 8;
-    msg[15] = (password_len + 8) * 8;
+	// Apply padding byte
+	msg[(password_len + 8) / 8] |= (ulong)0x80 << (7 - ((password_len + 8) % 8)) * 8;
+	msg[15] = (password_len + 8) * 8;
 
-    sha512(msg);
+	sha512(msg);
 
-    for(unsigned int i = 0; i < iterations - 1; i++) {
-        sha512_hash(msg);
-    }
+	for (unsigned int i = 0; i < iterations - 1; i++) {
+		sha512_hash(msg);
+	}
 
-    // Save state to device memory
-    for(int i = 0; i < 8; i++) {
-        state[idx * 8 + i] = msg[i];
-    }
+	// Save state to device memory
+	for (int i = 0; i < 8; i++) {
+		state[idx * 8 + i] = msg[i];
+	}
 }
 
-__kernel void hash_middle(__global ulong *state, unsigned int iterations)
+__kernel void hash_middle(__global ulong* state, unsigned int iterations)
 {
-    ulong msg[8];
-    int idx = get_global_id(0);
+	ulong msg[8];
+	int idx = get_global_id(0);
 
-    for(int i = 0; i < 8; i++) {
-        msg[i] = state[idx * 8 + i];
-    }
+	for (int i = 0; i < 8; i++) {
+		msg[i] = state[idx * 8 + i];
+	}
 
-    for(unsigned int i = 0; i < iterations; i++) {
-        sha512_hash(msg);
-    }
+	for (unsigned int i = 0; i < iterations; i++) {
+		sha512_hash(msg);
+	}
 
-    // Save state to device memory
-    for(int i = 0; i < 8; i++) {
-        state[idx * 8 + i] = msg[i];
-    }
+	// Save state to device memory
+	for (int i = 0; i < 8; i++) {
+		state[idx * 8 + i] = msg[i];
+	}
 }
 
-__kernel void hash_end(__global unsigned int *encrypted_block, __global unsigned int *iv, __global ulong *state, unsigned int iterations, __global int *result)
+__kernel void hash_end(__global unsigned int* encrypted_block, __global unsigned int* iv, __global ulong* state, unsigned int iterations, __global int* result)
 {
-    ulong msg[8];
-    int idx = get_global_id(0);
+	ulong msg[8];
+	int idx = get_global_id(0);
 
-    for(int i = 0; i < 8; i++) {
-        msg[i] = state[idx * 8 + i];
-    }
+	for (int i = 0; i < 8; i++) {
+		msg[i] = state[idx * 8 + i];
+	}
 
-    for(int i = 0; i < iterations; i++) {
-        sha512_hash(msg);
-    }
+	for (int i = 0; i < iterations; i++) {
+		sha512_hash(msg);
+	}
 
-    // Save state to device memory
-    for(int i = 0; i < 8; i++) {
-        state[idx * 8 + i] = msg[i];
-    }
+	// Save state to device memory
+	for (int i = 0; i < 8; i++) {
+		state[idx * 8 + i] = msg[i];
+	}
 
-    unsigned int key[8];
-    key[0] = (unsigned int)(msg[0] >> 32);
-    key[1] = (unsigned int)msg[0];
+	unsigned int key[8];
+	key[0] = (unsigned int)(msg[0] >> 32);
+	key[1] = (unsigned int)msg[0];
 
-    key[2] = (unsigned int)(msg[1] >> 32);
-    key[3] = (unsigned int)msg[1];
+	key[2] = (unsigned int)(msg[1] >> 32);
+	key[3] = (unsigned int)msg[1];
 
-    key[4] = (unsigned int)(msg[2] >> 32);
-    key[5] = (unsigned int)msg[2];
+	key[4] = (unsigned int)(msg[2] >> 32);
+	key[5] = (unsigned int)msg[2];
 
-    key[6] = (unsigned int)(msg[3] >> 32);
-    key[7] = (unsigned int)msg[3];
+	key[6] = (unsigned int)(msg[3] >> 32);
+	key[7] = (unsigned int)msg[3];
 
-    if(test_key(key, encrypted_block, iv)) {
-        *result = idx;
-    }
+	if (test_key(key, encrypted_block, iv)) {
+		*result = idx;
+	}
 }

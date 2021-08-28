@@ -1,9 +1,9 @@
-OUTPUT=../core-decrypt.bin
+OUTPUT=../core-decrypt
 CXX=g++
 CXXFLAGS=-O2 -std=c++11
 OPENCL_VERSION=120
-OPENCL_INCLUDE=/usr/local/cuda-9.2/include
-OPENCL_LIBS=/usr/local/cuda-9.2/lib64
+OPENCL_INCLUDE=/usr/local/cuda-11.0/include
+OPENCL_LIBS=/usr/local/cuda-11.0/lib64
 LIBS=-lOpenCL
 
 all:

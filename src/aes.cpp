@@ -212,23 +212,23 @@ static const unsigned int _invMixCol4[] = {
 
 static unsigned int sub_word(unsigned int t)
 {
-    return (_sbox[(unsigned char)(t >> 24)] << 24) | (_sbox[(unsigned char)(t >> 16)] << 16) | (_sbox[(unsigned char)(t>>8)] << 8) | _sbox[(unsigned char)t]; \
+	return (_sbox[(unsigned char)(t >> 24)] << 24) | (_sbox[(unsigned char)(t >> 16)] << 16) | (_sbox[(unsigned char)(t >> 8)] << 8) | _sbox[(unsigned char)t]; \
 }
 
 static unsigned int sub_and_rotate(unsigned int t)
 {
-    return (_sbox[(unsigned char)(t >> 16)] << 24) | (_sbox[(unsigned char)(t >> 8)] << 16) | (_sbox[(unsigned char)t] << 8) | _sbox[(unsigned char)(t >> 24)]; \
+	return (_sbox[(unsigned char)(t >> 16)] << 24) | (_sbox[(unsigned char)(t >> 8)] << 16) | (_sbox[(unsigned char)t] << 8) | _sbox[(unsigned char)(t >> 24)]; \
 }
 
-static void aes_256_key_expand(const unsigned int *key, unsigned int *subkeys)
+static void aes_256_key_expand(const unsigned int* key, unsigned int* subkeys)
 {
-    unsigned int t;
-    for(int i = 0; i < 8; i++) {
-        subkeys[i] = key[i];
-    }
+	unsigned int t;
+	for (int i = 0; i < 8; i++) {
+		subkeys[i] = key[i];
+	}
 
 
-    // Macro for key expansion
+	// Macro for key expansion
 #define SUBKEY_EXPAND(i, rcon)\
         t = subkeys[((i-1)*8)+7];\
         t = sub_and_rotate(t) ^ (rcon);\
@@ -249,7 +249,7 @@ static void aes_256_key_expand(const unsigned int *key, unsigned int *subkeys)
         subkeys[i*8+6] = t;\
         t ^= subkeys[(i-1)*8+7];\
         subkeys[i*8+7] = t;\
-        
+
 #define SUBKEY_EXPAND_HALF(i, rcon)\
         t = subkeys[((i-1)*8)+7];\
         t = sub_and_rotate(t) ^ (rcon);\
@@ -262,14 +262,14 @@ static void aes_256_key_expand(const unsigned int *key, unsigned int *subkeys)
         t ^= subkeys[(i-1)*8+3];\
         subkeys[i*8+3] = t;\
 
-    // Unroll key expansion
-    SUBKEY_EXPAND(1, 0x01000000)
-        SUBKEY_EXPAND(2, 0x02000000)
-        SUBKEY_EXPAND(3, 0x04000000)
-        SUBKEY_EXPAND(4, 0x08000000)
-        SUBKEY_EXPAND(5, 0x10000000)
-        SUBKEY_EXPAND(6, 0x20000000)
-        SUBKEY_EXPAND_HALF(7, 0x40000000)
+	// Unroll key expansion
+	SUBKEY_EXPAND(1, 0x01000000)
+		SUBKEY_EXPAND(2, 0x02000000)
+		SUBKEY_EXPAND(3, 0x04000000)
+		SUBKEY_EXPAND(4, 0x08000000)
+		SUBKEY_EXPAND(5, 0x10000000)
+		SUBKEY_EXPAND(6, 0x20000000)
+		SUBKEY_EXPAND_HALF(7, 0x40000000)
 }
 
 
@@ -277,19 +277,19 @@ static void aes_256_key_expand(const unsigned int *key, unsigned int *subkeys)
 
 void aes256_cbc_decrypt(unsigned int key[8], unsigned int iv[4], unsigned int ciphertext[4], unsigned int plaintext[4])
 {
-    unsigned int subkeys[60];
-    unsigned int s0, s1, s2, s3;
-    unsigned int t0, t1, t2, t3;
+	unsigned int subkeys[60];
+	unsigned int s0, s1, s2, s3;
+	unsigned int t0, t1, t2, t3;
 
-    aes_256_key_expand(key, subkeys);
+	aes_256_key_expand(key, subkeys);
 
-    // AddRoundKey
-    s0 = ciphertext[0] ^ subkeys[56];
-    s1 = ciphertext[1] ^ subkeys[57];
-    s2 = ciphertext[2] ^ subkeys[58];
-    s3 = ciphertext[3] ^ subkeys[59];
+	// AddRoundKey
+	s0 = ciphertext[0] ^ subkeys[56];
+	s1 = ciphertext[1] ^ subkeys[57];
+	s2 = ciphertext[2] ^ subkeys[58];
+	s3 = ciphertext[3] ^ subkeys[59];
 
-    // Macro for AES round (InvSubBytes, InvShiftRows, InvMixCols)
+	// Macro for AES round (InvSubBytes, InvShiftRows, InvMixCols)
 #define AES_ROUND(i)\
         t0 = (_invSbox[(s0>>24)]<<24)\
                 | (_invSbox[(unsigned char)(s3>>16)]<<16)\
@@ -328,42 +328,42 @@ void aes256_cbc_decrypt(unsigned int key[8], unsigned int iv[4], unsigned int ci
                     ^ _invMixCol3[(unsigned char)(s3>>8)]\
                     ^ _invMixCol4[(unsigned char)s3];\
 
-    // Unroll first 13 AES rounds
-    AES_ROUND(13)
-    AES_ROUND(12)
-    AES_ROUND(11)
-    AES_ROUND(10)
-    AES_ROUND(9)
-    AES_ROUND(8)
-    AES_ROUND(7)
-    AES_ROUND(6)
-    AES_ROUND(5)
-    AES_ROUND(4)
-    AES_ROUND(3)
-    AES_ROUND(2)
-    AES_ROUND(1)
+	// Unroll first 13 AES rounds
+	AES_ROUND(13)
+		AES_ROUND(12)
+		AES_ROUND(11)
+		AES_ROUND(10)
+		AES_ROUND(9)
+		AES_ROUND(8)
+		AES_ROUND(7)
+		AES_ROUND(6)
+		AES_ROUND(5)
+		AES_ROUND(4)
+		AES_ROUND(3)
+		AES_ROUND(2)
+		AES_ROUND(1)
 
-        // Last round: InvSubBytes + InvShiftRows
-        t0 = (_invSbox[(s0 >> 24)] << 24)
-        | (_invSbox[(unsigned char)(s3 >> 16)] << 16)
-        | (_invSbox[(unsigned char)(s2 >> 8)] << 8)
-        | (_invSbox[(unsigned char)(s1)]);
-    t1 = (_invSbox[(s1 >> 24)] << 24)
-        | (_invSbox[(unsigned char)(s0 >> 16)] << 16)
-        | (_invSbox[(unsigned char)(s3 >> 8)] << 8)
-        | (_invSbox[(unsigned char)(s2)]);
-    t2 = (_invSbox[(s2 >> 24)] << 24)
-        | (_invSbox[(unsigned char)(s1 >> 16)] << 16)
-        | (_invSbox[(unsigned char)(s0 >> 8)] << 8)
-        | (_invSbox[(unsigned char)(s3)]);
-    t3 = (_invSbox[(s3 >> 24)] << 24)
-        | (_invSbox[(unsigned char)(s2 >> 16)] << 16)
-        | (_invSbox[(unsigned char)(s1 >> 8)] << 8)
-        | (_invSbox[(unsigned char)(s0)]);
+		// Last round: InvSubBytes + InvShiftRows
+		t0 = (_invSbox[(s0 >> 24)] << 24)
+		| (_invSbox[(unsigned char)(s3 >> 16)] << 16)
+		| (_invSbox[(unsigned char)(s2 >> 8)] << 8)
+		| (_invSbox[(unsigned char)(s1)]);
+	t1 = (_invSbox[(s1 >> 24)] << 24)
+		| (_invSbox[(unsigned char)(s0 >> 16)] << 16)
+		| (_invSbox[(unsigned char)(s3 >> 8)] << 8)
+		| (_invSbox[(unsigned char)(s2)]);
+	t2 = (_invSbox[(s2 >> 24)] << 24)
+		| (_invSbox[(unsigned char)(s1 >> 16)] << 16)
+		| (_invSbox[(unsigned char)(s0 >> 8)] << 8)
+		| (_invSbox[(unsigned char)(s3)]);
+	t3 = (_invSbox[(s3 >> 24)] << 24)
+		| (_invSbox[(unsigned char)(s2 >> 16)] << 16)
+		| (_invSbox[(unsigned char)(s1 >> 8)] << 8)
+		| (_invSbox[(unsigned char)(s0)]);
 
-    // Final AddRoundKey
-    plaintext[0] = t0 ^ subkeys[0] ^ iv[0];
-    plaintext[1] = t1 ^ subkeys[1] ^ iv[1];
-    plaintext[2] = t2 ^ subkeys[2] ^ iv[2];
-    plaintext[3] = t3 ^ subkeys[3] ^ iv[3];
+	// Final AddRoundKey
+	plaintext[0] = t0 ^ subkeys[0] ^ iv[0];
+	plaintext[1] = t1 ^ subkeys[1] ^ iv[1];
+	plaintext[2] = t2 ^ subkeys[2] ^ iv[2];
+	plaintext[3] = t3 ^ subkeys[3] ^ iv[3];
 }

@@ -6,91 +6,91 @@
 
 
 
-PasswordDictionary::PasswordDictionary(const std::vector<std::string> &password_files, const std::vector<int> format)
+PasswordDictionary::PasswordDictionary(const std::vector<std::string>& password_files, const std::vector<int> format)
 {
-    _files = password_files;
-    _format = format;
+	_files = password_files;
+	_format = format;
 
-    load();
+	load();
 }
 
 
 void PasswordDictionary::load()
 {
-    unsigned int pos = 0;
+	unsigned int pos = 0;
 
-    std::vector<struct password_offset> offsets;
+	std::vector<struct password_offset> offsets;
 
-    for(int i = 0; i < _files.size(); i++) {
+	for (int i = 0; i < _files.size(); i++) {
 
-        unsigned int start = (unsigned int)_index.size();
+		unsigned int start = (unsigned int)_index.size();
 
-        std::ifstream inFile(_files[i].c_str());
+		std::ifstream inFile(_files[i].c_str());
 
-        if(!inFile.is_open()) {
-            throw std::string("Unable to open file '" + _files[i] + "' for reading");
-            return;
-        }
+		if (!inFile.is_open()) {
+			throw std::string("Unable to open file '" + _files[i] + "' for reading");
+			return;
+		}
 
-        std::string line;
+		std::string line;
 
-        while(std::getline(inFile, line)) {
-            removeNewline(line);
-            _index.push_back(pos);
-            int len = (int)line.length();
+		while (std::getline(inFile, line)) {
+			removeNewline(line);
+			_index.push_back(pos);
+			int len = (int)line.length();
 
-            _dictionary += line;
-            pos += len;
-        }
+			_dictionary += line;
+			pos += len;
+		}
 
-        struct password_offset offset;
-        offset.start = start;
-        offset.count = (unsigned int)_index.size() - start;
+		struct password_offset offset;
+		offset.start = start;
+		offset.count = (unsigned int)_index.size() - start;
 
-        offsets.push_back(offset);
+		offsets.push_back(offset);
 
-        // Add to the very end so the length of the last word (_index[i + 1] - _index[i]) can
-        // still be calculated
-        if(i == _files.size() - 1) {
-            _index.push_back(pos);
-        }
-    }
+		// Add to the very end so the length of the last word (_index[i + 1] - _index[i]) can
+		// still be calculated
+		if (i == _files.size() - 1) {
+			_index.push_back(pos);
+		}
+	}
 
 
-    for(int i = 0; i < _format.size(); i++) {
-        int idx = _format[i];
+	for (int i = 0; i < _format.size(); i++) {
+		int idx = _format[i];
 
-        _offsets.push_back(offsets[idx]);
-    }
+		_offsets.push_back(offsets[idx]);
+	}
 }
 
 uint64_t PasswordDictionary::get_size()
 {
-    uint64_t size = 1;
+	uint64_t size = 1;
 
-    for(int i = 0; i < _offsets.size(); i++) {
-        size *= _offsets[i].count;
-    }
+	for (int i = 0; i < _offsets.size(); i++) {
+		size *= _offsets[i].count;
+	}
 
-    return size;
+	return size;
 }
 
 std::string PasswordDictionary::get_password(uint64_t idx)
 {
-    std::string password;
+	std::string password;
 
-    for(int col = 0; col < _offsets.size(); col++) {
-        int start = _offsets[col].start;
-        int word_index = idx % _offsets[col].count;
+	for (int col = 0; col < _offsets.size(); col++) {
+		int start = _offsets[col].start;
+		int word_index = idx % _offsets[col].count;
 
-        int start_idx = _index[start + word_index];
-        int len = _index[start + word_index + 1] - start_idx;
+		int start_idx = _index[start + word_index];
+		int len = _index[start + word_index + 1] - start_idx;
 
-        password += _dictionary.substr(start_idx, len);
+		password += _dictionary.substr(start_idx, len);
 
-        idx -= word_index;
-        idx /= _offsets[col].count;
-    }
+		idx -= word_index;
+		idx /= _offsets[col].count;
+	}
 
-    return password;
+	return password;
 }
