@@ -1,4 +1,4 @@
-import sys, os.path, bsddb.db, struct, binascii
+import sys, os.path, bsddb3.db, struct, binascii
 
 def hex_padding(s, length):
     if len(s) % length != 0:
@@ -17,11 +17,11 @@ def read_encrypted_key(wallet_filename):
 			sys.exit(1)
 
 
-		db_env = bsddb.db.DBEnv()
-		db_env.open(os.path.dirname(wallet_filename), bsddb.db.DB_CREATE | bsddb.db.DB_INIT_MPOOL)
-		db = bsddb.db.DB(db_env)
+		db_env = bsddb3.db.DBEnv()
+		db_env.open(os.path.dirname(wallet_filename), bsddb3.db.DB_CREATE | bsddb3.db.DB_INIT_MPOOL)
+		db = bsddb3.db.DB(db_env)
 
-		db.open(wallet_filename, b"main", bsddb.db.DB_BTREE, bsddb.db.DB_RDONLY)
+		db.open(wallet_filename, b"main", bsddb3.db.DB_BTREE, bsddb3.db.DB_RDONLY)
 		mkey = db.get(b"\x04mkey\x01\x00\x00\x00")
 		db.close()
 		db_env.close()
